@@ -16,7 +16,7 @@ export function KeywordCloud({ keywords, excludedKeywords, onToggleKeyword }: Ke
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Tag className="w-4 h-4 text-primary" />
-          <h3 className="font-semibold text-foreground">Detected Keywords</h3>
+          <h3 className="font-semibold text-foreground">Sitemap Keywords</h3>
         </div>
         <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
           Click to omit
@@ -31,8 +31,8 @@ export function KeywordCloud({ keywords, excludedKeywords, onToggleKeyword }: Ke
               key={keyword}
               onClick={() => onToggleKeyword(keyword)}
               className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${isExcluded
-                  ? 'bg-muted text-muted-foreground opacity-60 hover:opacity-100'
-                  : 'bg-primary/10 text-primary hover:bg-primary/20 hover:scale-105'
+                ? 'bg-muted text-muted-foreground opacity-60 hover:opacity-100'
+                : 'bg-primary/10 text-primary hover:bg-primary/20 hover:scale-105'
                 }`}
               style={{ animationDelay: `${index * 30}ms` }}
               title={isExcluded ? "Include keyword" : "Exclude keyword"}

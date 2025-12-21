@@ -98,15 +98,33 @@ function extractKeywords(text: string): Map<string, number> {
   return keywordCounts;
 }
 
-// Extract keywords from URL slug (remains unigram-based for simplicity)
+// Extract keywords from the final URL segment (the slug)
 function extractSlugKeywords(url: string): string[] {
-  const slug = url
-    .replace(/^https?:\/\/[^/]+/, '')
-    .replace(/\.[a-z]+$/, '')
+  // consistent cleaning: remove protocol, domain, trailing slash, queries
+  let cleanUrl = url
+    .replace(/^https?:\/\/[^\/]+/, '') // remove protocol://domain
+    .split('?')[0] // remove query params
+    .split('#')[0] // remove hash
+    .replace(/\/$/, ''); // remove trailing slash
+
+  // If the URL was just a domain (e.g. moz.com) or turned empty, handle gracefully
+  if (!cleanUrl) return [];
+
+  // Get the part after the last slash
+  // For '/learn/seo', lastIndex is before 'seo'.
+  // For 'seo', lastIndex is -1.
+  const lastSlashIndex = cleanUrl.lastIndexOf('/');
+  const segment = lastSlashIndex !== -1
+    ? cleanUrl.substring(lastSlashIndex + 1)
+    : cleanUrl;
+
+  // Clean the segment (remove common file extensions)
+  const cleanSegment = segment
+    .replace(/\.[a-z0-9]+$/i, '')
     .toLowerCase();
 
-  return slug
-    .split(/[-_/]+/)
+  return cleanSegment
+    .split(/[-_]+/)
     .filter(word => word.length > 2 && !STOP_WORDS.has(word) && !isUrlLike(word));
 }
 
@@ -169,9 +187,17 @@ function calculateRelevance(
       const lowerArticle = articleWord.toLowerCase();
       if (excludedSet.has(lowerArticle)) return;
 
-      if (!matchedKeywords.includes(lowerArticle)) {
-        if (articleWord.includes(slugWord) || slugWord.includes(articleWord)) {
-          matchedKeywords.push(articleWord);
+      // We do NOT add articleWord to matchedKeywords to ensures matches
+      // are a strict subset of slugKeywords. We only use this for scoring.
+      if (!matchedKeywords.includes(slugWord)) {
+        if (articleWord.includes(slugWord)) {
+          // If the article term contains the slug term (e.g. "seo strategy" contains "seo"),
+          // then "seo" is present in the text and valid to highlight/match.
+          matchedKeywords.push(slugWord);
+          totalScore += Math.min(freq * 3, 15);
+        } else if (slugWord.includes(articleWord)) {
+          // If slug="ranking" and article="rank". We score it, but we can't
+          // highlight "ranking" (not in text) and can't use "rank" (not in slug).
           totalScore += Math.min(freq * 3, 15);
         }
       }
@@ -258,10 +284,9 @@ export function analyzeInternalLinks(
     });
 
   // Combine top keywords with all keywords that actually generated matches
-  const combinedKeywords = Array.from(new Set([
-    ...topArticleKeywords,
-    ...Array.from(allMatchedKeywords)
-  ])).sort();
+  // User Update: Detected keywords must EXCLUSIVELY come from the linking opportunities (slugs),
+  // not from the article body. We only return matched slug keywords.
+  const combinedKeywords = Array.from(allMatchedKeywords).sort();
 
   // Sort and filter based on mode and keyword presence
   const finalOpportunities = opportunities.filter(o => o.matchedKeywords.length > 0 && o.score > 0);
