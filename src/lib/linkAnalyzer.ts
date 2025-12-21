@@ -44,7 +44,7 @@ function extractKeywords(text: string): Map<string, number> {
     .filter(word => word.length > 2 && !STOP_WORDS.has(word));
 
   const keywordCounts = new Map<string, number>();
-  
+
   words.forEach(word => {
     const count = keywordCounts.get(word) || 0;
     keywordCounts.set(word, count + 1);
@@ -70,7 +70,7 @@ function extractSlugKeywords(url: string): string[] {
 // Calculate weighted keyword frequency
 function getWeightedKeywords(keywords: Map<string, number>): Map<string, number> {
   const weighted = new Map<string, number>();
-  
+
   keywords.forEach((count, word) => {
     const weight = SEO_TERM_WEIGHTS[word] || 1.0;
     weighted.set(word, count * weight);
@@ -203,4 +203,38 @@ export function getScoreCategory(score: number): 'high' | 'medium' | 'low' {
   if (score >= 75) return 'high';
   if (score >= 45) return 'medium';
   return 'low';
+}
+
+/**
+ * Normalizes a list of URLs for analysis.
+ * - Splits by newlines, commas, or spaces
+ * - Trims whitespace
+ * - Removes fragments (#) and query parameters (?)
+ * - Removes trailing slashes
+ * - Filters out empty strings
+ * - Deduplicates the list
+ */
+export function normalizeUrls(input: string): string[] {
+  if (!input) return [];
+
+  const rawUrls = input.split(/[\n,\s]+/).filter(Boolean);
+
+  const normalized = rawUrls.map(url => {
+    let clean = url.trim();
+
+    // Remove query parameters
+    clean = clean.split('?')[0];
+
+    // Remove fragments
+    clean = clean.split('#')[0];
+
+    // Remove trailing slash (except for home page /)
+    if (clean.length > 1 && clean.endsWith('/')) {
+      clean = clean.slice(0, -1);
+    }
+
+    return clean;
+  }).filter(Boolean);
+
+  return Array.from(new Set(normalized));
 }

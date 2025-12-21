@@ -9,14 +9,14 @@ interface ResultsListProps {
 
 function ScoreBadge({ score }: { score: number }) {
   const category = getScoreCategory(score);
-  
+
   // Calculate color from Red (0) to Green (120) based on score (0-100)
   // Low score = warm/red, high score = green
   const hue = Math.round((score / 100) * 120);
   const backgroundColor = `hsl(${hue}, 70%, 45%)`;
-  
+
   return (
-    <div 
+    <div
       className={`score-badge score-badge-${category}`}
       style={{ backgroundColor }}
     >
@@ -70,7 +70,7 @@ export function ResultsList({ opportunities, totalUrls, isLoading }: ResultsList
                 {index + 1}
               </span>
             </div>
-            
+
             <div className="flex-1 min-w-0">
               <a
                 href={opportunity.url.startsWith('http') ? opportunity.url : `https://example.com${opportunity.url}`}
@@ -81,7 +81,7 @@ export function ResultsList({ opportunities, totalUrls, isLoading }: ResultsList
                 {opportunity.url}
                 <ExternalLink className="w-3 h-3 shrink-0 opacity-50" />
               </a>
-              
+
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                 {opportunity.explanation}
                 {opportunity.matchedKeywords.length > 0 && (
@@ -98,7 +98,7 @@ export function ResultsList({ opportunities, totalUrls, isLoading }: ResultsList
                 )}
               </p>
             </div>
-            
+
             <ScoreBadge score={opportunity.score} />
           </div>
         ))}

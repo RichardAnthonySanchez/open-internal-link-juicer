@@ -7,7 +7,7 @@ import { SitemapInput } from '@/components/SitemapInput';
 import { ModeToggle } from '@/components/ModeToggle';
 import { ResultsList } from '@/components/ResultsList';
 import { KeywordCloud } from '@/components/KeywordCloud';
-import { analyzeInternalLinks, AnalysisResult } from '@/lib/linkAnalyzer';
+import { analyzeInternalLinks, normalizeUrls, AnalysisResult } from '@/lib/linkAnalyzer';
 import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
@@ -38,13 +38,13 @@ const Index = () => {
     }
 
     setIsAnalyzing(true);
-    
+
     // Small delay for UX
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    const urls = sitemapUrls.split('\n').filter(url => url.trim());
+    const urls = normalizeUrls(sitemapUrls);
     const analysisResults = analyzeInternalLinks(articleContent, urls, mode, 20);
-    
+
     setResults(analysisResults);
     setIsAnalyzing(false);
 
@@ -68,11 +68,11 @@ const Index = () => {
         <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
           {/* Left Column - Article Input */}
           <div className="lg:row-span-2">
-            <ArticleInput 
-              value={articleContent} 
-              onChange={setArticleContent} 
+            <ArticleInput
+              value={articleContent}
+              onChange={setArticleContent}
             />
-            
+
             {results && results.articleKeywords.length > 0 && (
               <KeywordCloud keywords={results.articleKeywords} />
             )}
@@ -81,12 +81,12 @@ const Index = () => {
           {/* Right Column - Controls & Results */}
           <div className="space-y-6">
             <div className="card-elevated p-6">
-              <ModeToggle mode={mode} onChange={setMode} />
-              
+              {/* <ModeToggle mode={mode} onChange={setMode} /> */}
+
               <div className="mt-6">
-                <SitemapInput 
-                  value={sitemapUrls} 
-                  onChange={setSitemapUrls} 
+                <SitemapInput
+                  value={sitemapUrls}
+                  onChange={setSitemapUrls}
                 />
               </div>
 
@@ -109,7 +109,7 @@ const Index = () => {
                     </>
                   )}
                 </Button>
-                
+
                 <Button
                   variant="outline"
                   size="lg"
