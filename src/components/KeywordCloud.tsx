@@ -18,9 +18,6 @@ export function KeywordCloud({ keywords, excludedKeywords, onToggleKeyword }: Ke
           <Tag className="w-4 h-4 text-primary" />
           <h3 className="font-semibold text-foreground">Sitemap Keywords</h3>
         </div>
-        <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
-          Click to omit
-        </span>
       </div>
 
       <div className="flex flex-wrap gap-2">

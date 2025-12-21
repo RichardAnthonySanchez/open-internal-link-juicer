@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Search, RotateCcw } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Search, RotateCcw, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/Header';
 import { ArticleInput } from '@/components/ArticleInput';
@@ -10,7 +10,6 @@ import { useLinkAnalysis } from '@/hooks/useLinkAnalysis';
 import { LinkOpportunity } from '@/lib/linkAnalyzer';
 import { useToast } from '@/hooks/use-toast';
 
-
 const Index = () => {
   const [articleContent, setArticleContent] = useState('');
   const [sitemapUrls, setSitemapUrls] = useState('');
@@ -18,9 +17,9 @@ const Index = () => {
   const [excludedKeywords, setExcludedKeywords] = useState<string[]>([]);
   const [selectedOpportunity, setSelectedOpportunity] = useState<LinkOpportunity | null>(null);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { analyze, isAnalyzing, results, reset } = useLinkAnalysis();
   const { toast } = useToast();
-
 
   const handleAnalyze = async (currentExcluded: string[] = excludedKeywords) => {
     if (!articleContent.trim()) {
@@ -44,6 +43,40 @@ const Index = () => {
     await analyze(articleContent, sitemapUrls, mode, currentExcluded);
   };
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.txt') && !file.name.endsWith('.csv') && !file.name.endsWith('.xml')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a .txt, .csv, or .xml file",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      let content = e.target?.result as string;
+
+      if (file.name.endsWith('.xml')) {
+        const urlMatches = content.match(/<loc>([^<]+)<\/loc>/g);
+        if (urlMatches) {
+          content = urlMatches
+            .map(match => match.replace(/<\/?loc>/g, ''))
+            .join('\n');
+        }
+      }
+
+      setSitemapUrls(content);
+      toast({
+        title: "File uploaded",
+        description: `Loaded ${content.split('\n').filter(l => l.trim()).length} URLs`
+      });
+    };
+    reader.readAsText(file);
+  };
 
   const handleToggleKeyword = (keyword: string) => {
     const newExcluded = excludedKeywords.includes(keyword)
@@ -51,7 +84,6 @@ const Index = () => {
       : [...excludedKeywords, keyword];
 
     setExcludedKeywords(newExcluded);
-    // Re-analyze immediately with the new exclusion list
     handleAnalyze(newExcluded);
   };
 
@@ -62,7 +94,6 @@ const Index = () => {
     setSelectedOpportunity(null);
     reset();
   };
-
 
   return (
     <div className="min-h-screen bg-background">
@@ -84,16 +115,32 @@ const Index = () => {
           {/* Right Column - Controls & Results */}
           <div className="space-y-6">
             <div className="card-elevated p-6">
-              {/* <ModeToggle mode={mode} onChange={setMode} /> */}
-
-              <div className="mt-6">
+              <div className="mt-2">
                 <SitemapInput
                   value={sitemapUrls}
                   onChange={setSitemapUrls}
+                  onReset={handleReset}
                 />
               </div>
 
               <div className="flex gap-3 mt-6">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept=".txt,.csv,.xml"
+                  className="hidden"
+                />
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-4 text-muted-foreground hover:text-foreground"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload
+                </Button>
+
                 <Button
                   onClick={() => handleAnalyze()}
                   disabled={isAnalyzing}
@@ -112,19 +159,9 @@ const Index = () => {
                     </>
                   )}
                 </Button>
-
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={handleReset}
-                  className="px-4"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                </Button>
               </div>
             </div>
 
-            {/* Keyword Cloud - NEW LOCATION */}
             {results && results.articleKeywords.length > 0 && (
               <KeywordCloud
                 keywords={[...results.articleKeywords, ...excludedKeywords].sort()}
@@ -158,3 +195,4 @@ const Index = () => {
 };
 
 export default Index;
+
