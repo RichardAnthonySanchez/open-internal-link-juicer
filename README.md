@@ -1,73 +1,110 @@
-# Welcome to your Lovable project
+# Internal Link Opportunity Finder
 
-## Project info
+A lightweight, client-side tool for discovering internal link opportunities using semantic relevance instead of manual guesswork.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+This project helps SEO freelancers and agencies quickly identify which existing pages on a site are most relevant to link from a new or existing article—without crawling, CMS access, or backend infrastructure.
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## What This Project Does
 
-**Use Lovable**
+The app takes two inputs:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+1. **Sitemap data** 
+2. **Article content** 
 
-Changes made via Lovable will be committed automatically to this repo.
+Each URL slug is treated as a proxy for a page’s primary topic. The tool analyzes the article’s content, infers its main themes and concepts, and then semantically compares them against all provided slugs.
 
-**Use your preferred IDE**
+The output is a **ranked list of internal link opportunities** (up to 20), each with a relevance score and short explanation describing why the page is a good match.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+This allows users to quickly spot high-confidence internal links that would feel natural and helpful to readers.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+---
 
-Follow these steps:
+## The Problem It Solves
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+Internal linking is often:
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+* Manual and time-consuming
+* Based on keyword guessing or site searches
+* Difficult to scale across many pages
+* Poor at validating *semantic* relevance
 
-# Step 3: Install the necessary dependencies.
-npm i
+Most tools require crawlers, CMS access, or complex setups. This project removes that friction by working entirely from user-provided inputs and running in the browser.
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+---
+
+## Who This Is For
+
+* Non-technical SEO freelancers
+* SEO agencies and content teams
+* Anyone doing on-page SEO who wants faster internal linking decisions
+* Developers interested in semantic search or SEO tooling
+
+Because this project is open source, developers can also fork it, run their own instance, or build on top of it.
+
+---
+
+## How It Works (High Level)
+
+* URL slugs are tokenized and interpreted as topic summaries
+* Article content is analyzed for key topics, concepts, and entities
+* Lightweight semantic matching validates relevance (not just exact keywords)
+* Results are ranked and returned with explainable scores
+
+The tool does **not** insert links automatically. It surfaces high-confidence opportunities so humans stay in control.
+
+---
+
+## Tech Stack
+
+* **Vite + React**
+* **transformers.js (by Xenova)** for client-side semantic models
+
+This project is inspired by and would not be possible without:
+
+* **SemanticFinder**
+  [https://github.com/do-me/SemanticFinder](https://github.com/do-me/SemanticFinder)
+* **transformers.js documentation**
+  [https://huggingface.co/docs/transformers.js/index#supported-tasksmodels](https://huggingface.co/docs/transformers.js/index#supported-tasksmodels)
+
+---
+
+## Installation & Onboarding
+
+You can run the project locally:
+
+```bash
+git clone <repo-url>
+cd <project-folder>
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The app will be available at:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```
+http://localhost:8080
+```
 
-**Use GitHub Codespaces**
+No backend, database, or API keys are required.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+---
 
-## What technologies are used for this project?
+## Contributing
 
-This project is built with:
+Contributions are welcome in any form.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+If you have experience with:
 
-## How can I deploy this project?
+* SEO
+* Internal linking strategies
+* Semantic search
+* UX for non-technical users
+* Performance or optimization
+* Documentation
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+…you’re encouraged to contribute.
 
-## Can I connect a custom domain to my Lovable project?
+Fork the repo, experiment freely, and submit a pull request. There are no strict contribution requirements—any help that improves the project is appreciated.
 
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
