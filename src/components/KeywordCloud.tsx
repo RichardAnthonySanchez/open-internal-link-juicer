@@ -1,31 +1,51 @@
-import { Tag } from 'lucide-react';
+import { Tag, XCircle, CheckCircle2 } from 'lucide-react';
 
 interface KeywordCloudProps {
   keywords: string[];
+  excludedKeywords: string[];
+  onToggleKeyword: (keyword: string) => void;
 }
 
-export function KeywordCloud({ keywords }: KeywordCloudProps) {
+export function KeywordCloud({ keywords, excludedKeywords, onToggleKeyword }: KeywordCloudProps) {
   if (keywords.length === 0) return null;
 
+  const excludedSet = new Set(excludedKeywords);
+
   return (
-    <div className="mt-4 p-4 bg-muted/30 rounded-lg">
-      <div className="flex items-center gap-2 mb-3">
-        <Tag className="w-4 h-4 text-muted-foreground" />
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          Detected Keywords
+    <div className="card-elevated p-6 animate-fade-in">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Tag className="w-4 h-4 text-primary" />
+          <h3 className="font-semibold text-foreground">Detected Keywords</h3>
+        </div>
+        <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
+          Click to omit
         </span>
       </div>
-      
+
       <div className="flex flex-wrap gap-2">
-        {keywords.slice(0, 12).map((keyword, index) => (
-          <span
-            key={keyword}
-            className="px-2.5 py-1 bg-accent text-accent-foreground text-xs font-medium rounded-full animate-fade-in"
-            style={{ animationDelay: `${index * 30}ms` }}
-          >
-            {keyword}
-          </span>
-        ))}
+        {keywords.map((keyword, index) => {
+          const isExcluded = excludedSet.has(keyword);
+          return (
+            <button
+              key={keyword}
+              onClick={() => onToggleKeyword(keyword)}
+              className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${isExcluded
+                  ? 'bg-muted text-muted-foreground opacity-60 hover:opacity-100'
+                  : 'bg-primary/10 text-primary hover:bg-primary/20 hover:scale-105'
+                }`}
+              style={{ animationDelay: `${index * 30}ms` }}
+              title={isExcluded ? "Include keyword" : "Exclude keyword"}
+            >
+              {keyword}
+              {isExcluded ? (
+                <CheckCircle2 className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100 transition-opacity" />
+              ) : (
+                <XCircle className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100 transition-opacity" />
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

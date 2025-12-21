@@ -152,14 +152,24 @@ export function analyzeInternalLinks(
   articleContent: string,
   urls: string[],
   mode: 'individual' | 'batch',
-  maxResults: number = 20
+  maxResults: number = 20,
+  excludedKeywords: string[] = []
 ): AnalysisResult {
   // Extract article keywords
-  const articleKeywords = extractKeywords(articleContent);
+  const allArticleKeywords = extractKeywords(articleContent);
+
+  // Filter out excluded keywords
+  const excludedSet = new Set(excludedKeywords.map(k => k.toLowerCase()));
+  const articleKeywords = new Map(
+    Array.from(allArticleKeywords.entries()).filter(([word]) => !excludedSet.has(word))
+  );
+
   const topArticleKeywords = Array.from(articleKeywords.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 20)
     .map(([word]) => word);
+
+  const allMatchedKeywords = new Set<string>();
 
   // Analyze each URL
   const opportunities: LinkOpportunity[] = urls
@@ -168,9 +178,11 @@ export function analyzeInternalLinks(
       const slugKeywords = extractSlugKeywords(url);
       const { score, matchedKeywords, explanation } = calculateRelevance(
         slugKeywords,
-        articleKeywords,
+        articleKeywords, // Pass the full filtered articleKeywords map
         articleContent
       );
+
+      matchedKeywords.forEach(k => allMatchedKeywords.add(k));
 
       return {
         url: url.trim(),
@@ -181,19 +193,27 @@ export function analyzeInternalLinks(
       };
     });
 
-  // Sort and filter based on mode
+  // Combine top keywords with all keywords that actually generated matches
+  const combinedKeywords = Array.from(new Set([
+    ...topArticleKeywords,
+    ...Array.from(allMatchedKeywords)
+  ])).sort();
+
+  // Sort and filter based on mode and keyword presence
+  const finalOpportunities = opportunities.filter(o => o.matchedKeywords.length > 0 && o.score > 0);
+
   if (mode === 'batch') {
-    opportunities.sort((a, b) => b.score - a.score);
+    finalOpportunities.sort((a, b) => b.score - a.score);
     return {
-      opportunities: opportunities.slice(0, maxResults).filter(o => o.score > 0),
-      articleKeywords: topArticleKeywords,
+      opportunities: finalOpportunities.slice(0, maxResults),
+      articleKeywords: combinedKeywords,
       totalUrls: urls.length
     };
   }
 
   return {
-    opportunities,
-    articleKeywords: topArticleKeywords,
+    opportunities: finalOpportunities,
+    articleKeywords: combinedKeywords,
     totalUrls: urls.length
   };
 }
@@ -203,38 +223,4 @@ export function getScoreCategory(score: number): 'high' | 'medium' | 'low' {
   if (score >= 75) return 'high';
   if (score >= 45) return 'medium';
   return 'low';
-}
-
-/**
- * Normalizes a list of URLs for analysis.
- * - Splits by newlines, commas, or spaces
- * - Trims whitespace
- * - Removes fragments (#) and query parameters (?)
- * - Removes trailing slashes
- * - Filters out empty strings
- * - Deduplicates the list
- */
-export function normalizeUrls(input: string): string[] {
-  if (!input) return [];
-
-  const rawUrls = input.split(/[\n,\s]+/).filter(Boolean);
-
-  const normalized = rawUrls.map(url => {
-    let clean = url.trim();
-
-    // Remove query parameters
-    clean = clean.split('?')[0];
-
-    // Remove fragments
-    clean = clean.split('#')[0];
-
-    // Remove trailing slash (except for home page /)
-    if (clean.length > 1 && clean.endsWith('/')) {
-      clean = clean.slice(0, -1);
-    }
-
-    return clean;
-  }).filter(Boolean);
-
-  return Array.from(new Set(normalized));
 }

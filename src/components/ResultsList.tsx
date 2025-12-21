@@ -5,6 +5,8 @@ interface ResultsListProps {
   opportunities: LinkOpportunity[];
   totalUrls: number;
   isLoading?: boolean;
+  excludedKeywords?: string[];
+  onToggleKeyword?: (keyword: string) => void;
 }
 
 function ScoreBadge({ score }: { score: number }) {
@@ -25,7 +27,13 @@ function ScoreBadge({ score }: { score: number }) {
   );
 }
 
-export function ResultsList({ opportunities, totalUrls, isLoading }: ResultsListProps) {
+export function ResultsList({
+  opportunities,
+  totalUrls,
+  isLoading,
+  excludedKeywords = [],
+  onToggleKeyword
+}: ResultsListProps) {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
@@ -45,6 +53,8 @@ export function ResultsList({ opportunities, totalUrls, isLoading }: ResultsList
       </div>
     );
   }
+
+  const excludedSet = new Set(excludedKeywords);
 
   return (
     <div className="space-y-4">
@@ -86,14 +96,19 @@ export function ResultsList({ opportunities, totalUrls, isLoading }: ResultsList
                 {opportunity.explanation}
                 {opportunity.matchedKeywords.length > 0 && (
                   <span className="inline-flex flex-wrap gap-1 mt-1.5">
-                    {opportunity.matchedKeywords.slice(0, 3).map(keyword => (
-                      <span
-                        key={keyword}
-                        className="highlight-keyword text-xs font-medium"
-                      >
-                        {keyword}
-                      </span>
-                    ))}
+                    {opportunity.matchedKeywords
+                      .filter(keyword => !excludedSet.has(keyword))
+                      .slice(0, 5)
+                      .map(keyword => (
+                        <button
+                          key={keyword}
+                          onClick={() => onToggleKeyword?.(keyword)}
+                          className="highlight-keyword text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                          title="Click to omit this keyword"
+                        >
+                          {keyword}
+                        </button>
+                      ))}
                   </span>
                 )}
               </p>

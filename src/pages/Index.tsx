@@ -7,7 +7,7 @@ import { SitemapInput } from '@/components/SitemapInput';
 import { ModeToggle } from '@/components/ModeToggle';
 import { ResultsList } from '@/components/ResultsList';
 import { KeywordCloud } from '@/components/KeywordCloud';
-import { analyzeInternalLinks, normalizeUrls, AnalysisResult } from '@/lib/linkAnalyzer';
+import { analyzeInternalLinks, AnalysisResult } from '@/lib/linkAnalyzer';
 import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
@@ -16,9 +16,10 @@ const Index = () => {
   const [mode, setMode] = useState<'individual' | 'batch'>('batch');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<AnalysisResult | null>(null);
+  const [excludedKeywords, setExcludedKeywords] = useState<string[]>([]);
   const { toast } = useToast();
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = async (currentExcluded: string[] = excludedKeywords) => {
     if (!articleContent.trim()) {
       toast({
         title: "Missing content",
@@ -42,22 +43,35 @@ const Index = () => {
     // Small delay for UX
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    const urls = normalizeUrls(sitemapUrls);
-    const analysisResults = analyzeInternalLinks(articleContent, urls, mode, 20);
+    const urls = sitemapUrls.split('\n').filter(url => url.trim());
+    const analysisResults = analyzeInternalLinks(articleContent, urls, mode, 20, currentExcluded);
 
     setResults(analysisResults);
     setIsAnalyzing(false);
 
-    toast({
-      title: "Analysis complete",
-      description: `Found ${analysisResults.opportunities.filter(o => o.score > 0).length} relevant opportunities`
-    });
+    if (currentExcluded.length === excludedKeywords.length) {
+      toast({
+        title: "Analysis complete",
+        description: `Found ${analysisResults.opportunities.filter(o => o.score > 0).length} relevant opportunities`
+      });
+    }
+  };
+
+  const handleToggleKeyword = (keyword: string) => {
+    const newExcluded = excludedKeywords.includes(keyword)
+      ? excludedKeywords.filter(k => k !== keyword)
+      : [...excludedKeywords, keyword];
+
+    setExcludedKeywords(newExcluded);
+    // Re-analyze immediately with the new exclusion list
+    handleAnalyze(newExcluded);
   };
 
   const handleReset = () => {
     setArticleContent('');
     setSitemapUrls('');
     setResults(null);
+    setExcludedKeywords([]);
   };
 
   return (
@@ -67,15 +81,11 @@ const Index = () => {
 
         <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
           {/* Left Column - Article Input */}
-          <div className="lg:row-span-2">
+          <div className="lg:row-span-3">
             <ArticleInput
               value={articleContent}
               onChange={setArticleContent}
             />
-
-            {results && results.articleKeywords.length > 0 && (
-              <KeywordCloud keywords={results.articleKeywords} />
-            )}
           </div>
 
           {/* Right Column - Controls & Results */}
@@ -92,7 +102,7 @@ const Index = () => {
 
               <div className="flex gap-3 mt-6">
                 <Button
-                  onClick={handleAnalyze}
+                  onClick={() => handleAnalyze()}
                   disabled={isAnalyzing}
                   className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
                   size="lg"
@@ -121,12 +131,23 @@ const Index = () => {
               </div>
             </div>
 
+            {/* Keyword Cloud - NEW LOCATION */}
+            {results && results.articleKeywords.length > 0 && (
+              <KeywordCloud
+                keywords={[...results.articleKeywords, ...excludedKeywords].sort()}
+                excludedKeywords={excludedKeywords}
+                onToggleKeyword={handleToggleKeyword}
+              />
+            )}
+
             {/* Results */}
             <div className="card-elevated p-6">
               <ResultsList
                 opportunities={results?.opportunities || []}
                 totalUrls={results?.totalUrls || 0}
                 isLoading={isAnalyzing}
+                excludedKeywords={excludedKeywords}
+                onToggleKeyword={handleToggleKeyword}
               />
             </div>
           </div>
