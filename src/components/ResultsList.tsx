@@ -10,8 +10,16 @@ interface ResultsListProps {
 function ScoreBadge({ score }: { score: number }) {
   const category = getScoreCategory(score);
   
+  // Calculate color from Red (0) to Green (120) based on score (0-100)
+  // Low score = warm/red, high score = green
+  const hue = Math.round((score / 100) * 120);
+  const backgroundColor = `hsl(${hue}, 70%, 45%)`;
+  
   return (
-    <div className={`score-badge score-badge-${category}`}>
+    <div 
+      className={`score-badge score-badge-${category}`}
+      style={{ backgroundColor }}
+    >
       {score}
     </div>
   );
