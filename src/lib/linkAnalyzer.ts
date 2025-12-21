@@ -23,10 +23,16 @@ export interface LinkOpportunity {
   url: string;
   score: number;
   semanticScore?: number;
+  semanticMatch?: {
+    score: number;
+    chunkText: string;
+    chunkIndex: number;
+  };
   explanation: string;
   matchedKeywords: string[];
   slugKeywords: string[];
 }
+
 
 
 export interface AnalysisResult {

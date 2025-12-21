@@ -4,20 +4,23 @@ import { Button } from '@/components/ui/button';
 import { Header } from '@/components/Header';
 import { ArticleInput } from '@/components/ArticleInput';
 import { SitemapInput } from '@/components/SitemapInput';
-import { ModeToggle } from '@/components/ModeToggle';
 import { ResultsList } from '@/components/ResultsList';
 import { KeywordCloud } from '@/components/KeywordCloud';
-import { analyzeInternalLinks, AnalysisResult } from '@/lib/linkAnalyzer';
+import { useLinkAnalysis } from '@/hooks/useLinkAnalysis';
+import { LinkOpportunity } from '@/lib/linkAnalyzer';
 import { useToast } from '@/hooks/use-toast';
+
 
 const Index = () => {
   const [articleContent, setArticleContent] = useState('');
   const [sitemapUrls, setSitemapUrls] = useState('');
-  const [mode, setMode] = useState<'individual' | 'batch'>('batch');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [results, setResults] = useState<AnalysisResult | null>(null);
+  const [mode] = useState<'individual' | 'batch'>('batch');
   const [excludedKeywords, setExcludedKeywords] = useState<string[]>([]);
+  const [selectedOpportunity, setSelectedOpportunity] = useState<LinkOpportunity | null>(null);
+
+  const { analyze, isAnalyzing, results, reset } = useLinkAnalysis();
   const { toast } = useToast();
+
 
   const handleAnalyze = async (currentExcluded: string[] = excludedKeywords) => {
     if (!articleContent.trim()) {
@@ -38,86 +41,9 @@ const Index = () => {
       return;
     }
 
-    setIsAnalyzing(true);
-
-    try {
-      // 1. Initial Keyword-based analysis (Fast baseline)
-      const urls = sitemapUrls.split('\n').filter(url => url.trim());
-      const analysisResults = analyzeInternalLinks(articleContent, urls, mode, 20, currentExcluded);
-
-      // 2. Semantic Analysis (Inspired by SemanticFinder)
-      const { semanticAnalyzer } = await import('@/lib/semanticAnalyzer');
-
-      // Initialize model (this may take time on first run)
-      await semanticAnalyzer.init();
-
-      // Chunk article into paragraphs/sentences for semantic matching
-      const articleChunks = articleContent
-        .split(/\n\n+/)
-        .map(c => c.trim())
-        .filter(c => c.length > 20);
-
-      // Generate embeddings for chunks
-      const chunkEmbeddings = await Promise.all(
-        articleChunks.map(chunk => semanticAnalyzer.generateEmbedding(chunk))
-      );
-
-      // Enhance opportunities with semantic scores
-      const enhancedOpportunities = await Promise.all(
-        analysisResults.opportunities.map(async (opportunity) => {
-          // Join slug keywords into a semantic query
-          const query = opportunity.slugKeywords.join(' ');
-          if (!query) return opportunity;
-
-          const queryEmbedding = await semanticAnalyzer.generateEmbedding(query);
-
-          // Find max similarity between query and any article chunk
-          let maxSim = 0;
-          for (const chunkEmb of chunkEmbeddings) {
-            const sim = semanticAnalyzer.cosineSimilarity(queryEmbedding, chunkEmb);
-            if (sim > maxSim) maxSim = sim;
-          }
-
-          return {
-            ...opportunity,
-            semanticScore: Math.round(maxSim * 100),
-            // Boost overall score if semantic match is high
-            score: Math.min(Math.max(opportunity.score, Math.round(maxSim * 100)), 100),
-            explanation: maxSim > 0.6
-              ? `Strong semantic match (${Math.round(maxSim * 100)}%) found in content.`
-              : opportunity.explanation
-          };
-        })
-      );
-
-      // Sort by best score (keyword or semantic)
-      enhancedOpportunities.sort((a, b) => b.score - a.score);
-      analysisResults.opportunities = enhancedOpportunities;
-
-      setResults(analysisResults);
-    } catch (error) {
-      console.error('Semantic analysis failed:', error);
-      // Fallback to basic analysis if semantic fails
-      const urls = sitemapUrls.split('\n').filter(url => url.trim());
-      const basicResults = analyzeInternalLinks(articleContent, urls, mode, 20, currentExcluded);
-      setResults(basicResults);
-
-      toast({
-        title: "Semantic analysis error",
-        description: "Falling back to keyword-based matching.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsAnalyzing(false);
-    }
-
-    if (currentExcluded.length === excludedKeywords.length) {
-      toast({
-        title: "Analysis complete",
-        description: "Semantic & keyword analysis finished."
-      });
-    }
+    await analyze(articleContent, sitemapUrls, mode, currentExcluded);
   };
+
 
   const handleToggleKeyword = (keyword: string) => {
     const newExcluded = excludedKeywords.includes(keyword)
@@ -132,9 +58,11 @@ const Index = () => {
   const handleReset = () => {
     setArticleContent('');
     setSitemapUrls('');
-    setResults(null);
     setExcludedKeywords([]);
+    setSelectedOpportunity(null);
+    reset();
   };
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -149,6 +77,7 @@ const Index = () => {
               onChange={setArticleContent}
               opportunities={results?.opportunities || []}
               excludedKeywords={excludedKeywords}
+              selectedOpportunity={selectedOpportunity}
             />
           </div>
 
@@ -212,6 +141,8 @@ const Index = () => {
                 isLoading={isAnalyzing}
                 excludedKeywords={excludedKeywords}
                 onToggleKeyword={handleToggleKeyword}
+                onSelectOpportunity={setSelectedOpportunity}
+                selectedUrl={selectedOpportunity?.url}
               />
             </div>
           </div>

@@ -8,13 +8,15 @@ interface ArticleInputProps {
   onChange: (value: string) => void;
   opportunities?: LinkOpportunity[];
   excludedKeywords?: string[];
+  selectedOpportunity?: LinkOpportunity | null;
 }
 
 export function ArticleInput({
   value,
   onChange,
   opportunities = [],
-  excludedKeywords = []
+  excludedKeywords = [],
+  selectedOpportunity = null
 }: ArticleInputProps) {
   const [isFocused, setIsFocused] = useState(false);
   const [showHighlights, setShowHighlights] = useState(false);
@@ -50,44 +52,82 @@ export function ArticleInput({
 
   const renderHighlights = () => {
     if (!value) return null;
-    if (sortedKeywords.length === 0) return <div className="whitespace-pre-wrap">{value}</div>;
 
-    // Build a regex for all keywords
-    const pattern = sortedKeywords.map(kw => kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-    const regex = new RegExp(`(\\b(${pattern})\\b)`, 'gi');
+    // Split text into paragraphs for semantic highlighting
+    // This should match the chunking logic in the hook
+    const paragraphs = value.split(/(\n\n+)/);
 
-    const parts = value.split(regex);
+    const semanticChunkText = selectedOpportunity?.semanticMatch?.chunkText;
+
     const elements: (string | JSX.Element)[] = [];
 
-    // value.split with groups returns: [content, full_match_including_capture, actual_keyword_match, content, ...]
-    // We iterate by 3s
-    for (let i = 0; i < parts.length; i += 3) {
-      elements.push(parts[i]); // Regular text
+    paragraphs.forEach((paragraph, pIdx) => {
+      const isSemanticMatch = semanticChunkText && paragraph.trim() === semanticChunkText.trim();
 
-      if (i + 1 < parts.length) {
-        const keyword = parts[i + 1];
-        const index = keywordMap.get(keyword.toLowerCase());
-
-        if (index) {
-          elements.push(
-            <span
-              key={`${i}-${keyword}`}
-              className="inline-flex items-center gap-1 px-1 bg-green-500/10 text-green-700 dark:text-green-400 font-semibold rounded border border-green-500/30 group relative transition-all hover:bg-green-500/20"
-            >
-              {keyword}
-              <span className="w-4 h-4 rounded-full bg-green-600 text-white text-[10px] flex items-center justify-center font-bold">
-                {index}
-              </span>
-            </span>
-          );
-        } else {
-          elements.push(keyword);
-        }
+      if (!isSemanticMatch && sortedKeywords.length === 0) {
+        elements.push(paragraph);
+        return;
       }
-    }
+
+      if (paragraph.match(/\n\n+/)) {
+        elements.push(paragraph);
+        return;
+      }
+
+      // If it's the semantic match paragraph, wrap it in a special container
+      const content = sortedKeywords.length > 0 ? (() => {
+        const pattern = sortedKeywords.map(kw => kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+        const regex = new RegExp(`(\\b(${pattern})\\b)`, 'gi');
+        const parts = paragraph.split(regex);
+        const subElements: (string | JSX.Element)[] = [];
+
+        for (let i = 0; i < parts.length; i += 3) {
+          subElements.push(parts[i]);
+
+          if (i + 1 < parts.length) {
+            const keyword = parts[i + 1];
+            const index = keywordMap.get(keyword.toLowerCase());
+
+            if (index) {
+              subElements.push(
+                <span
+                  key={`p${pIdx}-k${i}-${keyword}`}
+                  className="inline-flex items-center gap-1 px-1 bg-green-500/20 text-green-700 dark:text-green-400 font-bold rounded border border-green-500/40"
+                >
+                  {keyword}
+                  <span className="w-3.5 h-3.5 rounded-full bg-green-600 text-white text-[9px] flex items-center justify-center font-bold">
+                    {index}
+                  </span>
+                </span>
+              );
+            } else {
+              subElements.push(keyword);
+            }
+          }
+        }
+        return subElements;
+      })() : paragraph;
+
+      if (isSemanticMatch) {
+        elements.push(
+          <div
+            key={`p${pIdx}`}
+            className="p-3 my-2 bg-blue-500/10 border-2 border-blue-500/30 rounded-lg shadow-sm animate-pulse-subtle ring-2 ring-blue-500/20"
+          >
+            <div className="flex items-center gap-2 mb-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+              <Sparkles className="w-3 h-3" /> Semantic Target Area
+            </div>
+            {content}
+          </div>
+        );
+      } else {
+        elements.push(<span key={`p${pIdx}`}>{content}</span>);
+      }
+    });
 
     return <div className="whitespace-pre-wrap">{elements}</div>;
   };
+
 
   return (
     <div className="card-elevated p-6 h-full flex flex-col">
