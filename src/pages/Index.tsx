@@ -40,19 +40,81 @@ const Index = () => {
 
     setIsAnalyzing(true);
 
-    // Small delay for UX
-    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      // 1. Initial Keyword-based analysis (Fast baseline)
+      const urls = sitemapUrls.split('\n').filter(url => url.trim());
+      const analysisResults = analyzeInternalLinks(articleContent, urls, mode, 20, currentExcluded);
 
-    const urls = sitemapUrls.split('\n').filter(url => url.trim());
-    const analysisResults = analyzeInternalLinks(articleContent, urls, mode, 20, currentExcluded);
+      // 2. Semantic Analysis (Inspired by SemanticFinder)
+      const { semanticAnalyzer } = await import('@/lib/semanticAnalyzer');
 
-    setResults(analysisResults);
-    setIsAnalyzing(false);
+      // Initialize model (this may take time on first run)
+      await semanticAnalyzer.init();
+
+      // Chunk article into paragraphs/sentences for semantic matching
+      const articleChunks = articleContent
+        .split(/\n\n+/)
+        .map(c => c.trim())
+        .filter(c => c.length > 20);
+
+      // Generate embeddings for chunks
+      const chunkEmbeddings = await Promise.all(
+        articleChunks.map(chunk => semanticAnalyzer.generateEmbedding(chunk))
+      );
+
+      // Enhance opportunities with semantic scores
+      const enhancedOpportunities = await Promise.all(
+        analysisResults.opportunities.map(async (opportunity) => {
+          // Join slug keywords into a semantic query
+          const query = opportunity.slugKeywords.join(' ');
+          if (!query) return opportunity;
+
+          const queryEmbedding = await semanticAnalyzer.generateEmbedding(query);
+
+          // Find max similarity between query and any article chunk
+          let maxSim = 0;
+          for (const chunkEmb of chunkEmbeddings) {
+            const sim = semanticAnalyzer.cosineSimilarity(queryEmbedding, chunkEmb);
+            if (sim > maxSim) maxSim = sim;
+          }
+
+          return {
+            ...opportunity,
+            semanticScore: Math.round(maxSim * 100),
+            // Boost overall score if semantic match is high
+            score: Math.min(Math.max(opportunity.score, Math.round(maxSim * 100)), 100),
+            explanation: maxSim > 0.6
+              ? `Strong semantic match (${Math.round(maxSim * 100)}%) found in content.`
+              : opportunity.explanation
+          };
+        })
+      );
+
+      // Sort by best score (keyword or semantic)
+      enhancedOpportunities.sort((a, b) => b.score - a.score);
+      analysisResults.opportunities = enhancedOpportunities;
+
+      setResults(analysisResults);
+    } catch (error) {
+      console.error('Semantic analysis failed:', error);
+      // Fallback to basic analysis if semantic fails
+      const urls = sitemapUrls.split('\n').filter(url => url.trim());
+      const basicResults = analyzeInternalLinks(articleContent, urls, mode, 20, currentExcluded);
+      setResults(basicResults);
+
+      toast({
+        title: "Semantic analysis error",
+        description: "Falling back to keyword-based matching.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
 
     if (currentExcluded.length === excludedKeywords.length) {
       toast({
         title: "Analysis complete",
-        description: `Found ${analysisResults.opportunities.filter(o => o.score > 0).length} relevant opportunities`
+        description: "Semantic & keyword analysis finished."
       });
     }
   };

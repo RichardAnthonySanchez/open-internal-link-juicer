@@ -18,24 +18,16 @@ const STOP_WORDS = new Set([
   'many', 'much', 'very', 'more', 'most', 'some', 'any', 'each', 'every', 'within'
 ]);
 
-// SEO-related term weights for better matching
-const SEO_TERM_WEIGHTS: Record<string, number> = {
-  'seo': 2.0, 'content': 1.5, 'marketing': 1.5, 'strategy': 1.3, 'keyword': 1.8,
-  'link': 1.6, 'internal': 1.7, 'external': 1.4, 'backlink': 1.8, 'anchor': 1.5,
-  'optimization': 1.6, 'search': 1.4, 'engine': 1.3, 'google': 1.5, 'ranking': 1.7,
-  'traffic': 1.5, 'organic': 1.6, 'page': 1.2, 'blog': 1.3, 'article': 1.3,
-  'post': 1.2, 'guide': 1.4, 'tutorial': 1.3, 'tips': 1.2, 'cluster': 1.8,
-  'topic': 1.5, 'authority': 1.6, 'audit': 1.5, 'checklist': 1.4, 'tools': 1.3,
-  'research': 1.4, 'analysis': 1.4, 'improve': 1.3, 'create': 1.2
-};
 
 export interface LinkOpportunity {
   url: string;
   score: number;
+  semanticScore?: number;
   explanation: string;
   matchedKeywords: string[];
   slugKeywords: string[];
 }
+
 
 export interface AnalysisResult {
   opportunities: LinkOpportunity[];
@@ -128,30 +120,13 @@ function extractSlugKeywords(url: string): string[] {
     .filter(word => word.length > 2 && !STOP_WORDS.has(word) && !isUrlLike(word));
 }
 
-// Calculate weighted keyword frequency
-function getWeightedKeywords(keywords: Map<string, number>): Map<string, number> {
-  const weighted = new Map<string, number>();
+// No weighted keywords needed for strict exact matching
 
-  keywords.forEach((count, word) => {
-    let weight = SEO_TERM_WEIGHTS[word] || 1.0;
 
-    // Slight bonus for specific multi-word phrases (bigrams/trigrams)
-    if (word.includes(' ')) {
-      const wordCount = word.split(' ').length;
-      weight *= (1.0 + wordCount * 0.2); // 1.4x for bigrams, 1.6x for trigrams
-    }
-
-    weighted.set(word, count * weight);
-  });
-
-  return weighted;
-}
-
-// Calculate relevance score between slug keywords and article keywords
+// Calculate relevance score based on strict exact keyword overlap
 function calculateRelevance(
   slugKeywords: string[],
   articleKeywords: Map<string, number>,
-  articleText: string,
   excludedKeywords: string[] = []
 ): { score: number; matchedKeywords: string[]; explanation: string } {
   if (slugKeywords.length === 0) {
@@ -159,76 +134,28 @@ function calculateRelevance(
   }
 
   const excludedSet = new Set(excludedKeywords.map(k => k.toLowerCase()));
-  const weightedArticle = getWeightedKeywords(articleKeywords);
   const matchedKeywords: string[] = [];
-  let totalScore = 0;
-  let matchDetails: string[] = [];
+  let matchScore = 0;
 
-  // Check for exact matches
+  // Check for strict exact matches only
   slugKeywords.forEach(slugWord => {
     const lowerSlug = slugWord.toLowerCase();
     if (excludedSet.has(lowerSlug)) return;
 
-    if (weightedArticle.has(slugWord)) {
-      matchedKeywords.push(slugWord);
-      const frequency = weightedArticle.get(slugWord)!;
-      const weight = SEO_TERM_WEIGHTS[slugWord] || 1.0;
-      totalScore += Math.min(frequency * weight * 5, 25);
-      matchDetails.push(`"${slugWord}"`);
+    if (articleKeywords.has(lowerSlug)) {
+      matchedKeywords.push(lowerSlug);
+      // Base score on frequency in article
+      matchScore += Math.min(articleKeywords.get(lowerSlug)! * 20, 50);
     }
   });
 
-  // Check for partial/compound matches
-  slugKeywords.forEach(slugWord => {
-    const lowerSlug = slugWord.toLowerCase();
-    if (excludedSet.has(lowerSlug)) return;
-
-    weightedArticle.forEach((freq, articleWord) => {
-      const lowerArticle = articleWord.toLowerCase();
-      if (excludedSet.has(lowerArticle)) return;
-
-      // We do NOT add articleWord to matchedKeywords to ensures matches
-      // are a strict subset of slugKeywords. We only use this for scoring.
-      if (!matchedKeywords.includes(slugWord)) {
-        if (articleWord.includes(slugWord)) {
-          // If the article term contains the slug term (e.g. "seo strategy" contains "seo"),
-          // then "seo" is present in the text and valid to highlight/match.
-          matchedKeywords.push(slugWord);
-          totalScore += Math.min(freq * 3, 15);
-        } else if (slugWord.includes(articleWord)) {
-          // If slug="ranking" and article="rank". We score it, but we can't
-          // highlight "ranking" (not in text) and can't use "rank" (not in slug).
-          totalScore += Math.min(freq * 3, 15);
-        }
-      }
-    });
-  });
-
-  // Check for phrase presence in article - skip if phrase contains an excluded word
-  const slugPhrase = slugKeywords.join(' ');
-  const containsExcluded = slugKeywords.some(k => excludedSet.has(k.toLowerCase()));
-
-  if (!containsExcluded && articleText.toLowerCase().includes(slugPhrase)) {
-    totalScore += 20;
-    matchDetails.push(`the phrase "${slugPhrase}"`);
-  }
-
   // Normalize score to 0-100
-  const maxPossibleScore = slugKeywords.length * 25 + 20;
-  const normalizedScore = Math.round(Math.min((totalScore / maxPossibleScore) * 100, 100));
+  const normalizedScore = Math.min(matchScore, 100);
 
   // Generate explanation
   let explanation = '';
-  if (normalizedScore >= 85) {
-    explanation = `Strong match on ${matchDetails.slice(0, 2).join(' and ')} and related concepts in the body text.`;
-  } else if (normalizedScore >= 70) {
-    explanation = `Direct mention of ${matchDetails.slice(0, 2).join(', ')} and related terms in the article.`;
-  } else if (normalizedScore >= 50) {
-    explanation = `Topic clustering aligns with the main theme of ${matchedKeywords.slice(0, 2).join(', ')}.`;
-  } else if (normalizedScore >= 30) {
-    explanation = `Partial relevance through related concepts: ${matchedKeywords.slice(0, 2).join(', ')}.`;
-  } else if (matchedKeywords.length > 0) {
-    explanation = `Weak match with limited keyword overlap.`;
+  if (matchedKeywords.length > 0) {
+    explanation = `Matched keywords focus on: ${matchedKeywords.slice(0, 3).join(', ')}.`;
   } else {
     explanation = `No significant keyword overlap detected.`;
   }
@@ -253,11 +180,6 @@ export function analyzeInternalLinks(
     Array.from(allArticleKeywords.entries()).filter(([word]) => !excludedSet.has(word))
   );
 
-  const topArticleKeywords = Array.from(articleKeywords.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 20)
-    .map(([word]) => word);
-
   const allMatchedKeywords = new Set<string>();
 
   // Analyze each URL
@@ -268,7 +190,6 @@ export function analyzeInternalLinks(
       const { score, matchedKeywords, explanation } = calculateRelevance(
         slugKeywords,
         articleKeywords, // Pass the full filtered articleKeywords map
-        articleContent,
         excludedKeywords
       );
 
@@ -277,11 +198,13 @@ export function analyzeInternalLinks(
       return {
         url: url.trim(),
         score,
+        semanticScore: 0, // Will be updated by semantic analyzer if used
         explanation,
         matchedKeywords,
         slugKeywords
       };
     });
+
 
   // Combine top keywords with all keywords that actually generated matches
   // User Update: Detected keywords must EXCLUSIVELY come from the linking opportunities (slugs),

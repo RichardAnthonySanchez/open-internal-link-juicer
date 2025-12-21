@@ -114,7 +114,15 @@ export function ResultsList({
               </p>
             </div>
 
-            <ScoreBadge score={opportunity.score} />
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <ScoreBadge score={opportunity.score} />
+              {opportunity.semanticScore !== undefined && opportunity.semanticScore > 50 && (
+                <span className="text-[9px] font-bold text-blue-500 uppercase tracking-tighter flex items-center gap-0.5">
+                  <Sparkles className="w-2.5 h-2.5" />
+                  Semantic
+                </span>
+              )}
+            </div>
           </div>
         ))}
       </div>
