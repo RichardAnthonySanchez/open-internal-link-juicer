@@ -85,6 +85,8 @@ const Index = () => {
             <ArticleInput
               value={articleContent}
               onChange={setArticleContent}
+              opportunities={results?.opportunities || []}
+              excludedKeywords={excludedKeywords}
             />
           </div>
 

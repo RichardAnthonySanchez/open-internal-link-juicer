@@ -83,12 +83,14 @@ function getWeightedKeywords(keywords: Map<string, number>): Map<string, number>
 function calculateRelevance(
   slugKeywords: string[],
   articleKeywords: Map<string, number>,
-  articleText: string
+  articleText: string,
+  excludedKeywords: string[] = []
 ): { score: number; matchedKeywords: string[]; explanation: string } {
   if (slugKeywords.length === 0) {
     return { score: 0, matchedKeywords: [], explanation: 'No identifiable keywords in URL' };
   }
 
+  const excludedSet = new Set(excludedKeywords.map(k => k.toLowerCase()));
   const weightedArticle = getWeightedKeywords(articleKeywords);
   const matchedKeywords: string[] = [];
   let totalScore = 0;
@@ -96,6 +98,9 @@ function calculateRelevance(
 
   // Check for exact matches
   slugKeywords.forEach(slugWord => {
+    const lowerSlug = slugWord.toLowerCase();
+    if (excludedSet.has(lowerSlug)) return;
+
     if (weightedArticle.has(slugWord)) {
       matchedKeywords.push(slugWord);
       const frequency = weightedArticle.get(slugWord)!;
@@ -107,7 +112,13 @@ function calculateRelevance(
 
   // Check for partial/compound matches
   slugKeywords.forEach(slugWord => {
+    const lowerSlug = slugWord.toLowerCase();
+    if (excludedSet.has(lowerSlug)) return;
+
     weightedArticle.forEach((freq, articleWord) => {
+      const lowerArticle = articleWord.toLowerCase();
+      if (excludedSet.has(lowerArticle)) return;
+
       if (!matchedKeywords.includes(slugWord) && !matchedKeywords.includes(articleWord)) {
         if (articleWord.includes(slugWord) || slugWord.includes(articleWord)) {
           matchedKeywords.push(slugWord);
@@ -117,9 +128,11 @@ function calculateRelevance(
     });
   });
 
-  // Check for phrase presence in article
+  // Check for phrase presence in article - skip if phrase contains an excluded word
   const slugPhrase = slugKeywords.join(' ');
-  if (articleText.toLowerCase().includes(slugPhrase)) {
+  const containsExcluded = slugKeywords.some(k => excludedSet.has(k.toLowerCase()));
+
+  if (!containsExcluded && articleText.toLowerCase().includes(slugPhrase)) {
     totalScore += 20;
     matchDetails.push(`phrase "${slugPhrase}"`);
   }
@@ -179,7 +192,8 @@ export function analyzeInternalLinks(
       const { score, matchedKeywords, explanation } = calculateRelevance(
         slugKeywords,
         articleKeywords, // Pass the full filtered articleKeywords map
-        articleContent
+        articleContent,
+        excludedKeywords
       );
 
       matchedKeywords.forEach(k => allMatchedKeywords.add(k));
