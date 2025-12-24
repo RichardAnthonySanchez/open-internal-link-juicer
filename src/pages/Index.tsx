@@ -16,6 +16,7 @@ const Index = () => {
   const [mode] = useState<'individual' | 'batch'>('batch');
   const [excludedKeywords, setExcludedKeywords] = useState<string[]>([]);
   const [selectedOpportunity, setSelectedOpportunity] = useState<LinkOpportunity | null>(null);
+  const [showHighlights, setShowHighlights] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { analyze, isAnalyzing, results, reset } = useLinkAnalysis();
@@ -41,6 +42,7 @@ const Index = () => {
     }
 
     await analyze(articleContent, sitemapUrls, mode, currentExcluded);
+    setShowHighlights(true);
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -92,7 +94,13 @@ const Index = () => {
     setSitemapUrls('');
     setExcludedKeywords([]);
     setSelectedOpportunity(null);
+    setShowHighlights(false);
     reset();
+  };
+
+  const handleSelectOpportunity = (opportunity: LinkOpportunity) => {
+    setSelectedOpportunity(opportunity);
+    setShowHighlights(true);
   };
 
   return (
@@ -106,6 +114,8 @@ const Index = () => {
             <ArticleInput
               value={articleContent}
               onChange={setArticleContent}
+              showHighlights={showHighlights}
+              onShowHighlightsChange={setShowHighlights}
               opportunities={results?.opportunities || []}
               excludedKeywords={excludedKeywords}
               selectedOpportunity={selectedOpportunity}
@@ -178,7 +188,7 @@ const Index = () => {
                 isLoading={isAnalyzing}
                 excludedKeywords={excludedKeywords}
                 onToggleKeyword={handleToggleKeyword}
-                onSelectOpportunity={setSelectedOpportunity}
+                onSelectOpportunity={handleSelectOpportunity}
                 selectedUrl={selectedOpportunity?.url}
               />
             </div>

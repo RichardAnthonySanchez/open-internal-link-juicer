@@ -1,11 +1,14 @@
 import { useState, useMemo } from 'react';
-import { CheckCircle, FileText, X, Sparkles, Pencil } from 'lucide-react';
+import { CheckCircle, FileText, X, Sparkles, Pencil, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 import { LinkOpportunity } from '@/lib/linkAnalyzer';
 
 interface ArticleInputProps {
   value: string;
   onChange: (value: string) => void;
+  showHighlights: boolean;
+  onShowHighlightsChange: (show: boolean) => void;
   opportunities?: LinkOpportunity[];
   excludedKeywords?: string[];
   selectedOpportunity?: LinkOpportunity | null;
@@ -14,19 +17,21 @@ interface ArticleInputProps {
 export function ArticleInput({
   value,
   onChange,
+  showHighlights,
+  onShowHighlightsChange,
   opportunities = [],
   excludedKeywords = [],
   selectedOpportunity = null
 }: ArticleInputProps) {
   const [isFocused, setIsFocused] = useState(false);
-  const [showHighlights, setShowHighlights] = useState(false);
+  const { toast } = useToast();
 
   const wordCount = value.trim() ? value.trim().split(/\s+/).length : 0;
   const charCount = value.length;
 
   const handleClear = () => {
     onChange('');
-    setShowHighlights(false);
+    onShowHighlightsChange(false);
   };
 
   // Map each keyword to its highest ranking opportunity index (1-based)
@@ -145,7 +150,7 @@ export function ArticleInput({
             <Button
               variant={showHighlights ? "default" : "outline"}
               size="sm"
-              onClick={() => setShowHighlights(!showHighlights)}
+              onClick={() => onShowHighlightsChange(!showHighlights)}
               className={showHighlights ? "bg-green-600 hover:bg-green-700" : ""}
             >
               {showHighlights ? (
@@ -175,7 +180,16 @@ export function ArticleInput({
         : showHighlights ? 'border-green-500/50 bg-green-500/5' : 'border-border hover:border-primary/50'
         }`}>
         {showHighlights ? (
-          <div className="w-full h-full min-h-[400px] p-4 text-sm leading-relaxed overflow-y-auto">
+          <div
+            className="w-full h-full min-h-[400px] p-4 text-sm leading-relaxed overflow-y-auto cursor-help"
+            onClick={() => {
+              toast({
+                title: "Highlight Mode Active",
+                description: "You're in highlight mode. Switch to Edit Mode to modify your text.",
+                variant: "default",
+              });
+            }}
+          >
             {renderHighlights()}
           </div>
         ) : (
