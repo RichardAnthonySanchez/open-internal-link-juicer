@@ -83,6 +83,29 @@ graph TD
 
 ## 5. The Analysis Algorithm
 
+Link Weaver employs a hybrid approach, combining traditional keyword matching with modern semantic search.
+
+```mermaid
+flowchart TD
+    subgraph Keywords [Keyword Analysis]
+        K1[Article Text] --> K2[N-Gram Extraction]
+        K2 --> K3[Stop-word Filtering]
+        K4[URL Slugs] --> K5[Slug Tokenization]
+        K3 & K5 --> K6[Exact Match Scoring]
+    end
+
+    subgraph Semantic [Semantic Analysis]
+        S1[Article Chunks] --> S2[Transformers.js]
+        S2 --> S3[Vector Embeddings]
+        S4[URL Slug] --> S5[Query Embedding]
+        S3 & S5 --> S6[Cosine Similarity]
+    end
+
+    K6 --> F1[Base Score]
+    S6 --> F2[Semantic Score]
+    F1 & F2 --> F3[Combined Score: MAX]
+```
+
 ### Keyword Matching (`linkAnalyzer.ts`)
 - **N-Gram Extraction:** The text is tokenized into unigrams, bigrams, and trigrams.
 - **Stop-word Filtering:** Common SEO noise terms (e.g., "how to", "best of") are filtered out using a predefined `STOP_WORDS` set.
@@ -95,6 +118,21 @@ graph TD
 ---
 
 ## 6. Key React Components
+
+The UI follows a unidirectional data flow pattern, with `Index.tsx` acting as the state orchestrator.
+
+```mermaid
+graph TD
+    Index[Index.tsx Page] --> Header[Header]
+    Index --> AI[ArticleInput]
+    Index --> SI[SitemapInput]
+    Index --> KC[KeywordCloud]
+    Index --> RL[ResultsList]
+    
+    RL --> SB[ScoreBadge]
+    AI -.-> |Triggers| LA[useLinkAnalysis Hook]
+    LA -.-> |Updates| Index
+```
 
 ### `ArticleInput.tsx`
 - **Dual Mode:** Toggles between a standard `textarea` (Edit Mode) and a custom rendered `div` (Highlight Mode).
@@ -114,6 +152,17 @@ The application state is "lifted" to `src/pages/Index.tsx`. This ensures that `A
 
 ### Caching Strategy (`useLinkAnalysis.ts`)
 Generating embeddings is computationally expensive. To maintain 60fps performance:
+
+```mermaid
+flowchart LR
+    A[New Content] --> B{Cache Hit?}
+    B -- Yes --> C[Use Existing Embeddings]
+    B -- No --> D[Generate New Embeddings]
+    D --> E[Update useRef Cache]
+    E --> F[Run Analysis]
+    C --> F
+```
+
 - **Embedding Cache:** Article paragraph embeddings are stored in `useRef`. They are only recalculated if the article content actually changes.
 - **Memoization:** Keyword mapping for highlights is wrapped in `useMemo` to prevent unnecessary regex execution during re-renders.
 
