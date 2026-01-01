@@ -1,5 +1,7 @@
 # Internal Link Opportunity Finder
 
+![Tool Preview](public/preview.png)
+
 A lightweight, client-side tool for discovering internal link opportunities using semantic relevance instead of manual guesswork.
 
 This project helps SEO freelancers and agencies quickly identify which existing pages on a site are most relevant to link from a new or existing article—without crawling, CMS access, or backend infrastructure.
@@ -53,6 +55,32 @@ Because this project is open source, developers can also fork it, run their own 
 * Results are ranked and returned with explainable scores
 
 The tool does **not** insert links automatically. It surfaces high-confidence opportunities so humans stay in control.
+
+---
+
+## Architecture & Data Flow
+
+For a detailed breakdown of the system design, see the [Full Architecture Documentation](docs/ARCHITECTURE.md).
+
+### High-Level Flow
+
+```mermaid
+graph TD
+    A[User Input: Content + URLs] --> B[Index.tsx]
+    B --> C[useLinkAnalysis Hook]
+    
+    subgraph "Hybrid Analysis"
+        C --> D[Keyword Matching]
+        C --> E[Semantic Matching]
+        D --> F[N-Gram Overlap Score]
+        E --> G[Cosine Similarity Score]
+    end
+    
+    F --> H[Combined Score: MAX]
+    G --> H
+    H --> I[ResultsList UI]
+    I --> J[ArticleInput Highlights]
+```
 
 ---
 
