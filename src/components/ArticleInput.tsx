@@ -34,21 +34,37 @@ export function ArticleInput({
     onShowHighlightsChange(false);
   };
 
-  // Map each keyword to its highest ranking opportunity index (1-based)
+  // Map each keyword to its matching link opportunity
   const keywordMap = useMemo(() => {
-    const map = new Map<string, number>();
+    const map = new Map<string, LinkOpportunity>();
     const excludedSet = new Set(excludedKeywords.map(k => k.toLowerCase()));
 
-    opportunities.forEach((opt, index) => {
+    opportunities.forEach((opt) => {
       opt.matchedKeywords.forEach(kw => {
         const lowerKw = kw.toLowerCase();
         if (!map.has(lowerKw) && !excludedSet.has(lowerKw)) {
-          map.set(lowerKw, index + 1);
+          map.set(lowerKw, opt);
         }
       });
     });
     return map;
   }, [opportunities, excludedKeywords]);
+
+  const getHighlightStyle = (score: number) => {
+    const hue = Math.round((score / 100) * 120);
+    return {
+      backgroundColor: `hsla(${hue}, 85%, 50%, 0.3)`,
+      borderColor: `hsla(${hue}, 85%, 50%, 0.4)`,
+      color: `hsl(${hue}, 90%, 20%)`
+    };
+  };
+
+  const getBadgeStyle = (score: number) => {
+    const hue = Math.round((score / 100) * 120);
+    return {
+      backgroundColor: `hsl(${hue}, 70%, 45%)`
+    };
+  };
 
   // Sorted keywords by length descending to catch longer phrases first
   const sortedKeywords = useMemo(() =>
@@ -69,49 +85,63 @@ export function ArticleInput({
     paragraphs.forEach((paragraph, pIdx) => {
       const isSemanticMatch = semanticChunkText && paragraph.trim() === semanticChunkText.trim();
 
-      if (!isSemanticMatch && sortedKeywords.length === 0) {
-        elements.push(paragraph);
-        return;
-      }
-
       if (paragraph.match(/\n\n+/)) {
         elements.push(paragraph);
         return;
       }
 
-      // If it's the semantic match paragraph, wrap it in a special container
-      const content = sortedKeywords.length > 0 ? (() => {
-        const pattern = sortedKeywords.map(kw => kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-        const regex = new RegExp(`(\\b(${pattern})\\b)`, 'gi');
-        const parts = paragraph.split(regex);
-        const subElements: (string | JSX.Element)[] = [];
+      // Split paragraph into sentences
+      // Match a sentence-ending punctuation followed by whitespace or end of string
+      const sentenceParts = paragraph.split(/([.!?]+\s+)/);
+      const paragraphElements: (string | JSX.Element)[] = [];
 
-        for (let i = 0; i < parts.length; i += 3) {
-          subElements.push(parts[i]);
+      for (let i = 0; i < sentenceParts.length; i++) {
+        const sentence = sentenceParts[i];
+        if (!sentence) continue;
 
-          if (i + 1 < parts.length) {
-            const keyword = parts[i + 1];
-            const index = keywordMap.get(keyword.toLowerCase());
+        // Skip the punctuation/whitespace parts from the split
+        if (i % 2 !== 0) {
+          paragraphElements.push(sentence);
+          continue;
+        }
 
-            if (index) {
-              subElements.push(
-                <span
-                  key={`p${pIdx}-k${i}-${keyword}`}
-                  className="inline-flex items-center gap-1 px-1 bg-green-500/20 text-green-700 dark:text-green-400 font-bold rounded border border-green-500/40"
-                >
-                  {keyword}
-                  <span className="w-3.5 h-3.5 rounded-full bg-green-600 text-white text-[9px] flex items-center justify-center font-bold">
-                    {index}
-                  </span>
-                </span>
-              );
-            } else {
-              subElements.push(keyword);
-            }
+        // Check if any keyword matches this sentence
+        let matchedOpportunity: LinkOpportunity | null = null;
+        let matchedKeyword: string | null = null;
+
+        for (const kw of sortedKeywords) {
+          const regex = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+          if (regex.test(sentence)) {
+            matchedOpportunity = keywordMap.get(kw.toLowerCase()) || null;
+            matchedKeyword = kw;
+            break;
           }
         }
-        return subElements;
-      })() : paragraph;
+
+        if (matchedOpportunity) {
+          const optIndex = opportunities.findIndex(o => o.url === matchedOpportunity?.url) + 1;
+          const style = getHighlightStyle(matchedOpportunity.score);
+          const badgeStyle = getBadgeStyle(matchedOpportunity.score);
+
+          paragraphElements.push(
+            <span
+              key={`p${pIdx}-s${i}`}
+              className="px-0.5 py-0.25 rounded border transition-colors inline"
+              style={style}
+            >
+              {sentence}
+              <span
+                className="inline-flex items-center justify-center w-3.5 h-3.5 ml-1 rounded-full text-white text-[9px] font-bold align-middle"
+                style={badgeStyle}
+              >
+                {optIndex}
+              </span>
+            </span>
+          );
+        } else {
+          paragraphElements.push(sentence);
+        }
+      }
 
       if (isSemanticMatch) {
         elements.push(
@@ -122,11 +152,11 @@ export function ArticleInput({
             <div className="flex items-center gap-2 mb-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
               <Sparkles className="w-3 h-3" /> Semantic Target Area
             </div>
-            {content}
+            {paragraphElements}
           </div>
         );
       } else {
-        elements.push(<span key={`p${pIdx}`}>{content}</span>);
+        elements.push(<span key={`p${pIdx}`}>{paragraphElements}</span>);
       }
     });
 
