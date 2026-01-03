@@ -1,4 +1,4 @@
-import { ChevronRight, ExternalLink, Sparkles } from 'lucide-react';
+import { ChevronRight, ExternalLink, Sparkles, X } from 'lucide-react';
 import { LinkOpportunity, getScoreCategory } from '@/lib/linkAnalyzer';
 
 interface ResultsListProps {
@@ -81,8 +81,8 @@ export function ResultsList({
               key={opportunity.url}
               onClick={() => onSelectOpportunity?.(opportunity)}
               className={`flex items-start gap-4 p-4 rounded-lg cursor-pointer transition-all animate-slide-up border ${isSelected
-                  ? 'bg-blue-500/10 border-blue-500/50 shadow-sm ring-1 ring-blue-500/20'
-                  : 'bg-muted/30 border-transparent hover:bg-muted/50 hover:border-muted-foreground/20'
+                ? 'bg-blue-500/10 border-blue-500/50 shadow-sm ring-1 ring-blue-500/20'
+                : 'bg-muted/30 border-transparent hover:bg-muted/50 hover:border-muted-foreground/20'
                 }`}
               style={{ animationDelay: `${index * 50}ms` }}
             >
@@ -121,10 +121,11 @@ export function ResultsList({
                               e.stopPropagation();
                               onToggleKeyword?.(keyword);
                             }}
-                            className="highlight-keyword text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                            className="highlight-keyword group flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-destructive/10 hover:text-destructive transition-colors"
                             title="Click to omit this keyword"
                           >
                             {keyword}
+                            <X className="w-2.5 h-2.5 opacity-40 group-hover:opacity-100 transition-opacity" />
                           </button>
                         ))}
                     </span>

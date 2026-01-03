@@ -29,7 +29,7 @@ export function KeywordCloud({ keywords, excludedKeywords, onToggleKeyword }: Ke
               onClick={() => onToggleKeyword(keyword)}
               className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${isExcluded
                 ? 'bg-muted text-muted-foreground opacity-60 hover:opacity-100'
-                : 'bg-primary/10 text-primary hover:bg-primary/20 hover:scale-105'
+                : 'bg-primary/10 text-primary hover:bg-destructive/10 hover:text-destructive hover:scale-105'
                 }`}
               style={{ animationDelay: `${index * 30}ms` }}
               title={isExcluded ? "Include keyword" : "Exclude keyword"}
